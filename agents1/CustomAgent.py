@@ -36,6 +36,7 @@ class Phase(enum.Enum):
     FIX_ORDER_DROP = 17,
     REMOVE_OBSTACLE_IF_NEEDED = 18,
     ENTER_ROOM = 19
+    LOCATE_DELIVERED = 22
 
 
 class CustomAgent(ArtificialBrain):
@@ -73,6 +74,7 @@ class CustomAgent(ArtificialBrain):
         self._recent_vic = None
         self._received_messages = []
         self._moving = False
+        self._to_visit_del = []
 
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
@@ -783,14 +785,58 @@ class CustomAgent(ArtificialBrain):
                 # Communicate that the agent delivered a mildly injured victim alone to the drop zone
                 if 'mild' in self._goal_vic and self._rescue == 'alone':
                     self._send_message('Delivered ' + self._goal_vic + ' at the drop zone.', 'RescueBot')
+                # Experimental
+                self.confirm_victims(state)
+
                 # Identify the next target victim to rescue
-                self._phase = Phase.FIND_NEXT_GOAL
+                self._phase = Phase.LOCATE_DELIVERED
                 self._rescue = None
                 self._current_door = None
                 self._tick = state['World']['nr_ticks']
                 self._carrying = False
                 # Drop the victim on the correct location on the drop zone
                 return Drop.__name__, {'human_name': self._human_name}
+            if Phase.LOCATE_DELIVERED == self._phase:
+                if len(self._to_visit_del)==0:
+                    self._phase = Phase.FIND_NEXT_GOAL
+                else:
+                    print(state[self.agent_id]['location'])
+                    print(self._to_visit_del[0])
+
+                    if self._to_visit_del[0] == state[self.agent_id]['location']:
+                        #check if we have a person
+                        self._to_visit_del.remove(self._to_visit_del[0])
+                        print("move end")
+                        return None, {}
+                    else:
+                        print("move move")
+                        self._navigator.reset_full()
+                        self._navigator.add_waypoint(self._to_visit_del[0])
+                        action = self._navigator.get_move_action(self._state_tracker)
+                        if action is None:
+                            print("Navigator has no move action!")
+                            self._to_visit_del.remove(self._to_visit_del[0])
+                        return action, {}
+
+
+    def confirm_victims(self, state):
+        #WAYPOINT
+        places = state[{'is_goal_block': True}]
+        places.sort(key=lambda info: info['location'][1])
+        zones = []
+        print("been there done that")
+        for place in places:
+            if place['drop_zone_nr'] == 0:
+                zones.append(place)
+                print("this is a place")
+                self._to_visit_del.append(place['location'])
+                print(place['location'])
+
+                print(self._goal_loc)
+        self._to_visit_del.reverse()
+        #return zones
+
+
 
     def _get_drop_zones(self, state):
         '''
