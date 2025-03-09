@@ -99,6 +99,10 @@ class CustomAgent(ArtificialBrain):
         self._remove_start_tick = None
         self._max_remove_wait_ticks_close = 175 
         self._max_remove_wait_ticks_far = 300
+        self._human_says_searched = []
+        self._penalized_obstacles = []
+        self._rewarded_rooms = []
+        self._max_remove_wait_ticks_far = 300
         self._confirmed = []
 
     def initialize(self):
@@ -138,7 +142,11 @@ class CustomAgent(ArtificialBrain):
         self._trustBelief(self._team_members, self.trust_beliefs, self._folder, self._received_messages)
         # print(self._overallTrust(trustBeliefs[self._human_name]['search']['competence'], trustBeliefs[self._human_name]['search']['willingness'], 
         #                          trustBeliefs[self._human_name]['rescue']['competence'], trustBeliefs[self._human_name]['rescue']['willingness']))
-        
+        # If we don't trust the human to search areas, we check them ourselves
+        if self.trust_beliefs[self._human_name]['search']['willingness'] < 0.20:
+            self._searched_rooms = list(set(self._searched_rooms) - set(self._human_says_searched))
+            self._searched_rooms = list(set(self._searched_rooms).union(set(self._rewarded_rooms)))
+            #print('will double-check')
         # Check whether human is close in distance
         if state[{'is_human_agent': True}]:
             self._distance_human = 'close'
@@ -312,6 +320,7 @@ class CustomAgent(ArtificialBrain):
                         self._phase = Phase.PLAN_PATH_TO_ROOM
 
             if Phase.PLAN_PATH_TO_ROOM == self._phase:
+
                 # Reset the navigator for a new path planning
                 self._navigator.reset_full()
 
@@ -414,12 +423,23 @@ class CustomAgent(ArtificialBrain):
 
             # TODO:  change it so that after a certain amout of time the robot moves onto the next phase
             if Phase.REMOVE_OBSTACLE_IF_NEEDED == self._phase:
+                # Increase trust if we are double-checking whether the human searched an area and he did it properly
+                if self._door['room_name'] in self._human_says_searched and self._door[
+                    'room_name'] not in self._rewarded_rooms:
+                    self.trust_beliefs[self._human_name]['search']['willingness'] += 0.10
+                    self._rewarded_rooms.append(self._door['room_name'])
+                    print("+1 good job")
                 objects = []
                 agent_location = state[self.agent_id]['location']
                 # Identify which obstacle is blocking the entrance
                 for info in state.values():
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'rock' in info[
                         'obj_id']:
+                        # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
+                        if self._door['room_name'] in self._human_says_searched and self._door['room_name'] not in self._penalized_obstacles:
+                            self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                            self._penalized_obstacles.append(self._door['room_name'])
+                            print("-2 rock")
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -460,6 +480,11 @@ class CustomAgent(ArtificialBrain):
 
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'tree' in info[
                         'obj_id']:
+                        # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
+                        if self._door['room_name'] in self._human_says_searched and self._door['room_name'] not in self._penalized_obstacles:
+                            self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                            self._penalized_obstacles.append(self._door['room_name'])
+                            print("-2 tree")
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -497,6 +522,11 @@ class CustomAgent(ArtificialBrain):
 
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'stone' in \
                             info['obj_id']:
+                        # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
+                        if self._door['room_name'] in self._human_says_searched and self._door['room_name'] not in self._penalized_obstacles:
+                            self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                            self._penalized_obstacles.append(self._door['room_name'])
+                            print("-2 stone")
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -672,6 +702,10 @@ class CustomAgent(ArtificialBrain):
                                                                 'obj_id': info['obj_id']}
                                 # Communicate which victim the agent found and ask the human whether to rescue the victim now or at a later stage
                                 if 'mild' in vic and self._answered == False and not self._waiting:
+                                    # If human said he searched this area but there is a victim, then this means he didn't properly search it, so we update trust
+                                    if self._door['room_name'] in self._human_says_searched:
+                                        self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                                        print("-2 mild victim")
                                     self._send_message('Found ' + vic + ' in ' + self._door['room_name'] + '. Please decide whether to "Rescue together", "Rescue alone", or "Continue" searching. \n \n \
                                         Important features to consider are: \n safe - victims rescued: ' + str(
                                         self._collected_victims) + '\n explore - areas searched: area ' + str(
@@ -681,6 +715,10 @@ class CustomAgent(ArtificialBrain):
                                     self._waiting = True
 
                                 if 'critical' in vic and self._answered == False and not self._waiting:
+                                    # If human said he searched this area but there is a victim, then this means he didn't properly search it, so we update trust
+                                    if self._door['room_name'] in self._human_says_searched:
+                                        self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                                        print("-2 critical victim")
                                     self._send_message('Found ' + vic + ' in ' + self._door['room_name'] + '. Please decide whether to "Rescue" or "Continue" searching. \n\n \
                                         Important features to consider are: \n explore - areas searched: area ' + str(
                                         self._searched_rooms).replace('area',
@@ -975,6 +1013,8 @@ class CustomAgent(ArtificialBrain):
                 # If a received message involves team members searching areas, add these areas to the memory of areas that have been explored
                 if msg.startswith("Search:"):
                     area = 'area ' + msg.split()[-1]
+                    if area not in self._human_says_searched:
+                        self._human_says_searched.append(area)
                     if area not in self._searched_rooms:
                         self._searched_rooms.append(area)
                 # If a received message involves team members finding victims, add these victims and their locations to memory
@@ -1058,6 +1098,11 @@ class CustomAgent(ArtificialBrain):
                         self._rescue = 'together'
                 # If a received message involves team members asking for help with removing obstacles, add their location to memory and come over
                 if msg.startswith('Remove:'):
+                    # Make up trust value if the human did report an obstacle correctly
+                    area = 'area ' + msg.split()[-1]
+                    if area in self._human_says_searched:
+                        self.trust_beliefs[self._human_name]['search']['willingness'] += 0.30
+                        print('+3 remove')
                     # Come over immediately when the agent is not carrying a victim
                     if not self._carrying:
                         # Start tracking time for the remove together action
@@ -1311,7 +1356,7 @@ class CustomAgent(ArtificialBrain):
             print(f"{prefix}{{")
             for key, value in obj.items():
                 print(f"{prefix}  {key}: ", end="")
-                print_recursively(value, indent + 1)
+                obj.print_recursively(value, indent + 1)
             print(f"{prefix}}}")
         elif isinstance(obj, (list, tuple)) or hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
             try:
@@ -1319,7 +1364,7 @@ class CustomAgent(ArtificialBrain):
                 collection_type = type(obj).__name__
                 print(f"{prefix}{collection_type}([")
                 for item in obj:
-                    print_recursively(item, indent + 1)
+                    obj.print_recursively(item, indent + 1)
                 print(f"{prefix}])")
             except (TypeError, AttributeError):
                 print(f"{prefix}{obj}")
