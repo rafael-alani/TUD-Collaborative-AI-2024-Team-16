@@ -888,7 +888,7 @@ class CustomAgent(ArtificialBrain):
                 if len(self._to_visit_del) == 0:
                     self._phase = Phase.FIND_NEXT_GOAL
 
-                    counter = 0
+                    counter = len(self.collected_victims) + len(self._possible_rescued_humans)
                     victims = [item['victim'] for item in self._possible_searched_rooms]
                     locations = [item['room'] for item in self._possible_searched_rooms]
 
@@ -896,17 +896,19 @@ class CustomAgent(ArtificialBrain):
                     print("we here")    
                     print(f'{self._confirmed}, possible victims {victims} possible victimes no: {len(self._collected_victims) + len(self._possible_searched_rooms)}')
 
-                    if (len(self._possible_searched_rooms) != counter):
+                    if (len(self._confirmed) != counter):
                         self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
 
                     else:
                         self.trust_beliefs[self._human_name]['rescue']['competence'] += \
-                            WEIGHTS['found_victim_true'] * len(victims)
+                            WEIGHTS['found_victim_true'] * len(self._possible_rescued_humans)
 
                     victim_to_room = {item['victim']: item['room'] for item in self._possible_searched_rooms}
-                    for victim in victims:
-                        if victim in self._found_victims:
-                            self._found_victim_logs[victim] = {'room': victim_to_room[victim]}
+                    for victim in self._possible_rescued_humans:
+                        for victim2 in self._confirmed:
+                            print(f'{victim} {victim2}')
+                            if victim2.contains(victim):
+                                self._found_victim_logs[victim] = {'room': victim_to_room[victim]}
 
 
                 else:
@@ -1039,9 +1041,12 @@ class CustomAgent(ArtificialBrain):
                     if loc not in self._searched_rooms:
                         if self.trust_beliefs[self._human_name]['rescue']['competence'] >= TRUST_TRESHOLDS['collecting_trust']:
                             self._searched_rooms.append(loc)
+                            self._found_victim_logs[collectVic]['room'] = loc
+                            self._collected_victims.append(collectVic)
                         else:
                             self._possible_searched_rooms.append({'victim': collectVic, 'room': loc})
-                            return
+                            self._possible_rescued_humans.append(collectVic)
+                        return
 
                     # Add the victim and location to the memory of found victims
                     if collectVic not in self._found_victims:
@@ -1053,7 +1058,7 @@ class CustomAgent(ArtificialBrain):
                             self._found_victims.remove(collectVic)
                             # del self._found_victim_logs[collectVic]
                         
-                    #     self._found_victim_logs[collectVic] = {'room': loc}
+                        self._found_victim_logs[collectVic] = {'room': loc}
                     # Add the victim to the memory of rescued victims when the human's condition is not weak
                     if condition != 'weak' and collectVic not in self._collected_victims:
                         self._collected_victims.append(collectVic)
