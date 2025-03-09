@@ -887,7 +887,27 @@ class CustomAgent(ArtificialBrain):
             if Phase.LOCATE_DELIVERED == self._phase:
                 if len(self._to_visit_del) == 0:
                     self._phase = Phase.FIND_NEXT_GOAL
-                    print("is this a success?: " , len(self._confirmed))
+
+                    counter = 0
+                    victims = [item['victim'] for item in self._possible_searched_rooms]
+                    locations = [item['room'] for item in self._possible_searched_rooms]
+
+
+                    print("we here")    
+                    print(f'{self._confirmed}, possible victims {victims} possible victimes no: {len(self._collected_victims) + len(self._possible_searched_rooms)}')
+
+                    if (len(self._possible_searched_rooms) != counter):
+                        self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
+
+                    else:
+                        self.trust_beliefs[self._human_name]['rescue']['competence'] += \
+                            WEIGHTS['found_victim_true'] * len(victims)
+
+                    victim_to_room = {item['victim']: item['room'] for item in self._possible_searched_rooms}
+                    for victim in victims:
+                        if victim in self._found_victims:
+                            self._found_victim_logs[victim] = {'room': victim_to_room[victim]}
+
 
                 else:
                     print(state[self.agent_id]['location'])
