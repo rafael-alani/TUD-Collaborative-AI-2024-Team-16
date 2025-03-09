@@ -102,7 +102,7 @@ class CustomAgent(ArtificialBrain):
         # Initialize and update trust beliefs for team members
         trustBeliefs = self._loadBelief(self._team_members, self._folder)
         self._trustBeliefs = trustBeliefs
-        self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
+        self._trustBelief(self._team_members, self._trustBeliefs, self._folder, self._received_messages)
         # print(self._overallTrust(trustBeliefs[self._human_name]['search']['competence'], trustBeliefs[self._human_name]['search']['willingness'], 
         #                          trustBeliefs[self._human_name]['rescue']['competence'], trustBeliefs[self._human_name]['rescue']['willingness']))
 
@@ -275,7 +275,7 @@ class CustomAgent(ArtificialBrain):
                         if self._door['room_name'] in self._human_says_searched:
                             self._trustBeliefs[self._human_name]['search']['willingness'] += 0.10
                             self._normalize_trust_beliefs(self._trustBeliefs)
-                            print("+1")
+                            print(self._trustBeliefs[self._human_name]['search']['willingness'])
                         self._phase = Phase.PLAN_PATH_TO_ROOM
 
             if Phase.PLAN_PATH_TO_ROOM == self._phase:
