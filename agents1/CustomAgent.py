@@ -50,6 +50,7 @@ class Phase(enum.Enum):
     REMOVE_OBSTACLE_IF_NEEDED = 18,
     ENTER_ROOM = 19,
     CHECK_DROP_ZONE = 20
+    LOCATE_DELIVERED = 22
 
 class CustomAgent(ArtificialBrain):
     def __init__(self, slowdown, condition, name, folder):
@@ -97,7 +98,8 @@ class CustomAgent(ArtificialBrain):
         self._trustBeliefs = {}
         self._remove_start_tick = None
         self._max_remove_wait_ticks_close = 175 
-        self._max_remove_wait_ticks_far = 300  
+        self._max_remove_wait_ticks_far = 300
+        self._confirmed = []
 
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
@@ -871,7 +873,8 @@ class CustomAgent(ArtificialBrain):
                 # if 'mild' in self._goal_vic and self._rescue == 'alone':
                 self._send_message('Delivered ' + self._goal_vic + ' at the drop zone.', 'RescueBot')
                 # Identify the next target victim to rescue
-                self._phase = Phase.CHECK_DROP_ZONE
+                self._phase = Phase.LOCATE_DELIVERED
+                self.confirm_victims(state)
                 # self._phase = Phase.FIND_NEXT_GOAL
                 self._rescue = None
                 self._current_door = None
@@ -880,24 +883,56 @@ class CustomAgent(ArtificialBrain):
                 # Drop the victim on the correct location on the drop zone
                 return Drop.__name__, {'human_name': self._human_name}
 
-            if Phase.CHECK_DROP_ZONE == self._phase:
-                counter = 0
-                victims = [item['victim'] for item in self._possible_searched_rooms]
-                locations = [item['room'] for item in self._possible_searched_rooms]
-                if (len(self._possible_searched_rooms) != counter):
-                    self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
+
+            if Phase.LOCATE_DELIVERED == self._phase:
+                if len(self._to_visit_del) == 0:
+                    self._phase = Phase.FIND_NEXT_GOAL
 
                 else:
-                    self.trust_beliefs[self._human_name]['rescue']['competence'] += \
-                        WEIGHTS['found_victim_true'] * len(victims)
+                    print(state[self.agent_id]['location'])
+                    print(self._to_visit_del[0])
+                    print(self._goal_vic)
 
-                victim_to_room = {item['victim']: item['room'] for item in self._possible_searched_rooms}
-                for victim in victims:
-                    if victim in self._found_victims:
-                        self._found_victim_logs[victim] = {'room': victim_to_room[victim]}
+                    if self._to_visit_del[0] == state[self.agent_id]['location']:
+                    # check if we have a
+                        print(state[self.agent_id])
+                        for info in state.values():
+                            if "location" in info and info["location"] == self._to_visit_del[0] and info["obj_id"].contains(
+                                    "injured"):
+                                self._confirmed.append(info["obj_id"])
 
-                print("we would be checking with the robot here")
-                self._phase = Phase.FIND_NEXT_GOAL
+                        self._to_visit_del.remove(self._to_visit_del[0])
+                        print("move end")
+                        return None, {}
+                    else:
+                        print("move move")
+                        self._goal_vic = self._to_visit_del[0]
+                        self._navigator.reset_full()
+                        self._navigator.add_waypoint(self._to_visit_del[0])
+                        self._state_tracker.update(state)
+                        action = self._navigator.get_move_action(self._state_tracker)
+                        if action is None:
+                            print("Navigator has no move action!")
+                            self._to_visit_del.remove(self._to_visit_del[0])
+                        return action, {}
+
+    def confirm_victims(self, state):
+            # WAYPOINT
+        self._to_visit_del = []
+        self._confirmed = []
+        places = state[{'is_goal_block': True}]
+        places.sort(key=lambda info: info['location'][1])
+        zones = []
+        for place in places:
+            if place['drop_zone_nr'] == 0:
+                zones.append(place)
+                self._to_visit_del.append(place['location'])
+        #It's cleaner when he starts with the bottom
+        self._to_visit_del.reverse()
+
+
+
+
     def _get_drop_zones(self, state):
         '''
         @return list of drop zones (their full dict), in order (the first one is the
