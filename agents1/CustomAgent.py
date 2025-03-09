@@ -1010,7 +1010,7 @@ class CustomAgent(ArtificialBrain):
                     if counter != len(self._confirmed):
                         self.trust_beliefs[self._human_name]['rescue']['competence'] -= .2
                     else:
-                        self._collected_victims = set(self._collected_victims).union(set(self._possible_rescued_humans))
+                        self._collected_victims = list(set(self._collected_victims).union(set(self._possible_rescued_humans)))
                         self.trust_beliefs[self._human_name]['rescue']['competence'] += .2
 
 
