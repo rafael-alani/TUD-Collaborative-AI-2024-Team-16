@@ -75,6 +75,7 @@ class CustomAgent(ArtificialBrain):
         self._received_messages = []
         self._moving = False
         self._to_visit_del = []
+        self._confirmed = []
 
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
@@ -806,8 +807,11 @@ class CustomAgent(ArtificialBrain):
 
                     if self._to_visit_del[0] == state[self.agent_id]['location']:
                         #check if we have a
-                        if('mild' in self._goal_vic or 'critical' in self._goal_vic):
-                            print("BIG SUCCESS")
+                        print(state[self.agent_id])
+                        for info in state.values():
+                            if "location" in info and info["location"]==self._to_visit_del[0] and info["obj_id"].contains("injured"):
+                                self._confirmed.append(info["obj_id"])
+
                         self._to_visit_del.remove(self._to_visit_del[0])
                         print("move end")
                         return None, {}
@@ -827,19 +831,15 @@ class CustomAgent(ArtificialBrain):
     def confirm_victims(self, state):
         #WAYPOINT
         self._to_visit_del=[]
+        self._confirmed = []
         places = state[{'is_goal_block': True}]
         places.sort(key=lambda info: info['location'][1])
         zones = []
-        print("been there done that")
         for place in places:
             if place['drop_zone_nr'] == 0:
                 zones.append(place)
-                print("this is a place")
-                print(place)
                 self._to_visit_del.append(place['location'])
-                print(place['location'])
         self._to_visit_del.reverse()
-        print(len(self._to_visit_del))
         #return zones
 
 
