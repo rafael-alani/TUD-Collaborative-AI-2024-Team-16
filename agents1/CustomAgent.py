@@ -816,6 +816,7 @@ class CustomAgent(ArtificialBrain):
                         self._goal_vic = self._to_visit_del[0]
                         self._navigator.reset_full()
                         self._navigator.add_waypoint(self._to_visit_del[0])
+                        self._state_tracker.update(state)
                         action = self._navigator.get_move_action(self._state_tracker)
                         if action is None:
                             print("Navigator has no move action!")
