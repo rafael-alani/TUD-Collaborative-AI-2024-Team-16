@@ -89,7 +89,8 @@ class CustomAgent(ArtificialBrain):
         self._trustBeliefs = {}
         self._remove_start_tick = None
         self._max_remove_wait_ticks_close = 175 
-        self._max_remove_wait_ticks_far = 300  
+        self._max_remove_wait_ticks_far = 300
+        self._human_says_searched = []
 
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
@@ -402,6 +403,16 @@ class CustomAgent(ArtificialBrain):
                 for info in state.values():
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'rock' in info[
                         'obj_id']:
+                        # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
+                        if self._door['room_name'] in self._human_says_searched:
+                            #value = self._get_ws(self._folder)
+                            #value -= 0.20
+                            #value = np.clip(value, -1, 1)
+                            #self._update_trust_value(self._folder, 'willingnessSearch', value)
+
+                            self._trustBeliefs[self._human_name]['search']['willingness'] -= 0.20
+                            self._normalize_trust_beliefs(self._trustBeliefs)
+                            self._trustBelief(self._team_members, self._trustBeliefs, self._folder,self._received_messages)
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -442,6 +453,11 @@ class CustomAgent(ArtificialBrain):
 
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'tree' in info[
                         'obj_id']:
+                        # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
+                        #if self._door['room_name'] in self._human_says_searched:
+                        #    self._trustBeliefs[self._human_name]['search']['willingness'] -= 0.20
+                        #    self._normalize_trust_beliefs(self._trustBeliefs)
+                        #    self._trustBelief(self._team_members, self._trustBeliefs, self._folder, self._received_messages)
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -479,6 +495,11 @@ class CustomAgent(ArtificialBrain):
 
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'stone' in \
                             info['obj_id']:
+                        # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
+                        #if self._door['room_name'] in self._human_says_searched:
+                        #    self._trustBeliefs[self._human_name]['search']['willingness'] -= 0.20
+                         #   self._normalize_trust_beliefs(self._trustBeliefs)
+                         #   self._trustBelief(self._team_members, self._trustBeliefs, self._folder, self._received_messages)
                         objects.append(info)
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -655,6 +676,12 @@ class CustomAgent(ArtificialBrain):
                                                                 'obj_id': info['obj_id']}
                                 # Communicate which victim the agent found and ask the human whether to rescue the victim now or at a later stage
                                 if 'mild' in vic and self._answered == False and not self._waiting:
+                                    # If human said he searched this area but there is a victim, then this means he didn't properly search it, so we update trust
+                                    #if self._door['room_name'] in self._human_says_searched:
+                                    #    self._trustBeliefs[self._human_name]['search']['willingness'] -= 0.20
+                                    #    self._normalize_trust_beliefs(self._trustBeliefs)
+                                    #    self._trustBelief(self._team_members, self._trustBeliefs, self._folder,
+                                    #                      self._received_messages)
                                     self._send_message('Found ' + vic + ' in ' + self._door['room_name'] + '. Please decide whether to "Rescue together", "Rescue alone", or "Continue" searching. \n \n \
                                         Important features to consider are: \n safe - victims rescued: ' + str(
                                         self._collected_victims) + '\n explore - areas searched: area ' + str(
@@ -664,6 +691,12 @@ class CustomAgent(ArtificialBrain):
                                     self._waiting = True
 
                                 if 'critical' in vic and self._answered == False and not self._waiting:
+                                    # If human said he searched this area but there is a victim, then this means he didn't properly search it, so we update trust
+                                    #if self._door['room_name'] in self._human_says_searched:
+                                    #    self._trustBeliefs[self._human_name]['search']['willingness'] -= 0.20
+                                    #    self._normalize_trust_beliefs(self._trustBeliefs)
+                                    #    self._trustBelief(self._team_members, self._trustBeliefs, self._folder,
+                                     #                     self._received_messages)
                                     self._send_message('Found ' + vic + ' in ' + self._door['room_name'] + '. Please decide whether to "Rescue" or "Continue" searching. \n\n \
                                         Important features to consider are: \n explore - areas searched: area ' + str(
                                         self._searched_rooms).replace('area',
@@ -913,6 +946,8 @@ class CustomAgent(ArtificialBrain):
                 # If a received message involves team members searching areas, add these areas to the memory of areas that have been explored
                 if msg.startswith("Search:"):
                     area = 'area ' + msg.split()[-1]
+                    if area not in self._human_says_searched:
+                        self._human_says_searched.append(area)
                     if area not in self._searched_rooms:
                         self._searched_rooms.append(area)
                 # If a received message involves team members finding victims, add these victims and their locations to memory
@@ -1028,6 +1063,12 @@ class CustomAgent(ArtificialBrain):
             
 
             # self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
+
+    def _get_ws(self, folder):
+        with open(folder + '/beliefs/allTrustBeliefs.csv', 'r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=';', quotechar="'")
+            next(reader)  # Skip header row
+            return float(next(reader)[2])  # Directly return willingnessSearch value
 
     def _loadBelief(self, members, folder):
         '''
@@ -1175,3 +1216,74 @@ class CustomAgent(ArtificialBrain):
             else:
                 locs.append((x[i], max(y)))
         return locs
+
+    def _get_trust_value(self, folder, attribute):
+        """
+        Reads and returns a specific trust value for the current human from the CSV file.
+
+        :param folder: The folder path containing the trust beliefs file.
+        :param attribute: The trust attribute to retrieve (e.g., 'willingnessSearch').
+        :return: The trust value if found, otherwise None.
+        """
+        trustfile_path = folder + '/beliefs/allTrustBeliefs.csv'
+
+        attribute_map = {
+            'competenceSearch': 1,
+            'willingnessSearch': 2,
+            'competenceRescue': 3,
+            'willingnessRescue': 4
+        }
+
+        if attribute not in attribute_map:
+            raise ValueError("Invalid attribute name. Choose from: " + ", ".join(attribute_map.keys()))
+
+        with open(trustfile_path, 'r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=';', quotechar="'")
+            next(reader)  # Skip header row
+
+            for row in reader:
+                if row and row[0] == self._human_name:
+                    return float(row[attribute_map[attribute]])
+
+        return None
+
+    def _update_trust_value(self, folder, attribute, new_value):
+        """
+        Updates and writes a specific trust value for the current human in the CSV file.
+
+        :param folder: The folder path containing the trust beliefs file.
+        :param attribute: The trust attribute to update (e.g., 'willingnessSearch').
+        :param new_value: The new value to be written.
+        """
+        trustfile_path = folder + '/beliefs/allTrustBeliefs.csv'
+
+        attribute_map = {
+            'competenceSearch': 1,
+            'willingnessSearch': 2,
+            'competenceRescue': 3,
+            'willingnessRescue': 4
+        }
+
+        if attribute not in attribute_map:
+            raise ValueError("Invalid attribute name. Choose from: " + ", ".join(attribute_map.keys()))
+
+        updated_rows = []
+        found = False
+
+        with open(trustfile_path, 'r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=';', quotechar="'")
+            header = next(reader)
+            updated_rows.append(header)
+
+            for row in reader:
+                if row and row[0] == self._human_name:
+                    row[attribute_map[attribute]] = str(new_value)
+                    found = True
+                updated_rows.append(row)
+
+        if not found:
+            raise ValueError("Human name not found in the CSV file.")
+
+        with open(trustfile_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter=';', quotechar="'", quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(updated_rows)
