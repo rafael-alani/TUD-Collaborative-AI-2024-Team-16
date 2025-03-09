@@ -887,6 +887,7 @@ class CustomAgent(ArtificialBrain):
             if Phase.LOCATE_DELIVERED == self._phase:
                 if len(self._to_visit_del) == 0:
                     self._phase = Phase.FIND_NEXT_GOAL
+                    print("is this a success?: " , len(self._confirmed))
 
                 else:
                     print(state[self.agent_id]['location'])
@@ -897,8 +898,7 @@ class CustomAgent(ArtificialBrain):
                     # check if we have a
                         print(state[self.agent_id])
                         for info in state.values():
-                            if "location" in info and info["location"] == self._to_visit_del[0] and info["obj_id"].contains(
-                                    "injured"):
+                            if "location" in info and info["location"] == self._to_visit_del[0] and "injured" in info["obj_id"]:
                                 self._confirmed.append(info["obj_id"])
 
                         self._to_visit_del.remove(self._to_visit_del[0])
