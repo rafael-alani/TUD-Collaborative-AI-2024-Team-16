@@ -2,6 +2,7 @@
 # Virtual environment
 myenv/
 venv/
+currenv/
 .env/
 .venv/
 

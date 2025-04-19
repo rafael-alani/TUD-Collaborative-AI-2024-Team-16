@@ -1,4 +1,4 @@
-import sys, random, enum, ast, time, csv
+import sys, random, enum, ast, time, csv, atexit
 import numpy as np
 from matrx import grid_world
 from brains1.ArtificialBrain import ArtificialBrain
@@ -113,6 +113,9 @@ class CustomAgent(ArtificialBrain):
         self._max_remove_wait_ticks_far = 300
         self._confirmed = []
 
+        # even if process killed save
+        atexit.register(self._save_final_trust_beliefs)
+
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
         self._state_tracker = StateTracker(agent_id=self.agent_id)
@@ -120,10 +123,13 @@ class CustomAgent(ArtificialBrain):
                                     algorithm=Navigator.A_STAR_ALGORITHM)
 
         # Initialize trust beliefs with default values first
-        self.trust_beliefs = {}  # This will set up the default structure
-
+        #self.trust_beliefs = {}  # This will set up the default structure
         # Then load any existing beliefs
-        trustBeliefs = self._loadBelief(self._team_members, self._folder)
+        #trustBeliefs = self._loadBelief(self._team_members, self._folder)
+
+        # Load existing trust beliefs from files
+        trustBeliefs = self._loadBelief(self._human_name, self._folder)
+        
         if trustBeliefs:  # Only update if we got valid beliefs
             self.trust_beliefs = trustBeliefs
         self._trustBelief(self._team_members, self.trust_beliefs, self._folder, self._received_messages)
@@ -1216,46 +1222,69 @@ class CustomAgent(ArtificialBrain):
 
             # self._trustBelief(self._team_members, trustBeliefs, self._folder, self._received_messages)
 
-    def _loadBelief(self, members, folder):
+    def _loadBelief(self, human_name, folder):
         '''
-        Loads trust belief values if agent already collaborated with human before, otherwise trust belief values are initialized using default values.
+        Loads trust belief values from either allTrustBeliefs.csv (for persistence between rounds)
+        or initializes with default values if no record exists.
         '''
-        # Create a dictionary with trust values for all team members
+        # Create a dictionary for storing trust values
         trustBeliefs = {}
-        # Set a default starting trust value
-
         default = TRUST_TRESHOLDS['default']
-        trustfile_header = []
-        trustfile_contents = []
-        # Check if agent already collaborated with this human before, if yes: load the corresponding trust values, if no: initialize using default trust values
-        with open(folder + '/beliefs/allTrustBeliefs.csv') as csvfile:
-            reader = csv.reader(csvfile, delimiter=';', quotechar="'")
-            for row in reader:
-                name = self._human_name 
-                if trustfile_header == []:
-                    trustfile_header = row
-                    continue
-                # Retrieve trust values 
-                if row and row[0] == self._human_name:
-                    name = row[0]
-                    competenceSearch = float(row[1])
-                    willingnessSearch = float(row[2])
-                    competenceRescue = float(row[3])
-                    willingnessRescue = float(row[4])
-                    trustBeliefs[name] = {
-                        'search' :{'competence': competenceSearch, 'willingness': willingnessSearch},
-                        'rescue' :{'competence': competenceRescue, 'willingness': willingnessRescue}
-                    }
-                # Initialize default trust values
-                if row and row[0] != self._human_name:
-                    competenceSearch = default
-                    willingnessSearch = default
-                    competenceRescue = default
-                    willingnessRescue = default
-                    trustBeliefs[self._human_name] = {
-                        'search' :{'competence': competenceSearch, 'willingness': willingnessSearch},
-                        'rescue' :{'competence': competenceRescue, 'willingness': willingnessRescue}
-                    }
+        
+        # first try to load from allTrustBeliefs.csv
+        found_in_all_beliefs = False
+        try:
+            with open(folder + '/beliefs/allTrustBeliefs.csv', 'r') as csvfile:
+                reader = csv.reader(csvfile, delimiter=';', quotechar="'")
+                header_row = next(reader, None)
+                
+                if header_row: 
+                    for row in reader:
+                        if row and len(row) >= 5 and row[0] == human_name:
+                            competenceSearch = float(row[1])
+                            willingnessSearch = float(row[2])
+                            competenceRescue = float(row[3])
+                            willingnessRescue = float(row[4])
+                            
+                            trustBeliefs[human_name] = {
+                                'search': {'competence': competenceSearch, 'willingness': willingnessSearch},
+                                'rescue': {'competence': competenceRescue, 'willingness': willingnessRescue}
+                            }
+                            found_in_all_beliefs = True
+                            break
+        except (FileNotFoundError, IOError):
+            pass
+            
+        # if not found in allTrustBeliefs.csv, try currentTrustBelief.csv as fallback
+        if not found_in_all_beliefs:
+            try:
+                with open(folder + '/beliefs/currentTrustBelief.csv', 'r') as csvfile:
+                    reader = csv.reader(csvfile, delimiter=';', quotechar="'")
+                    header_row = next(reader, None)
+                    
+                    if header_row:  
+                        for row in reader:
+                            if row and len(row) >= 5 and row[0] == human_name:
+
+                                competenceSearch = float(row[1])
+                                willingnessSearch = float(row[2])
+                                competenceRescue = float(row[3])
+                                willingnessRescue = float(row[4])
+                                
+                                trustBeliefs[human_name] = {
+                                    'search': {'competence': competenceSearch, 'willingness': willingnessSearch},
+                                    'rescue': {'competence': competenceRescue, 'willingness': willingnessRescue}
+                                }
+                                break
+            except (FileNotFoundError, IOError):
+                pass
+                
+        if not trustBeliefs:
+            trustBeliefs[human_name] = {
+                'search': {'competence': default, 'willingness': default},
+                'rescue': {'competence': default, 'willingness': default}
+            }
+            
         return trustBeliefs
 
     def _trustBelief(self, members, trustBeliefs, folder, receivedMessages):
@@ -1345,9 +1374,9 @@ class CustomAgent(ArtificialBrain):
 
     def _recalculatePossibleSearchedRooms(self):
         if self.trust_beliefs[self._human_name]['rescue']['competence'] >= TRUST_TRESHOLDS['collecting_trust']:
-            for loc in self._possibleSearchedRooms:
+            for loc in self._possible_searched_rooms:
                 self._searched_rooms.append(loc)
-        self._possibleSearchedRooms = []
+        self._possible_searched_rooms = []
 
     def _save_trust_beliefs_to_csv(self):
         """
@@ -1364,16 +1393,60 @@ class CustomAgent(ArtificialBrain):
                 'rescue': {'competence': default, 'willingness': default}
             }
 
-        with open(self._folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            csv_writer.writerow(['name', 'competence search', 'willingness search', 'competence rescue', 'willingness rescue'])
-            csv_writer.writerow([
-                self._human_name,
-                self._trust_beliefs_dict[self._human_name]['search']['competence'],
-                self._trust_beliefs_dict[self._human_name]['search']['willingness'],
-                self._trust_beliefs_dict[self._human_name]['rescue']['competence'],
-                self._trust_beliefs_dict[self._human_name]['rescue']['willingness']
-            ])
+        try:
+            with open(self._folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
+                csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                csv_writer.writerow(['name', 'competence search', 'willingness search', 'competence rescue', 'willingness rescue'])
+                csv_writer.writerow([
+                    self._human_name,
+                    self._trust_beliefs_dict[self._human_name]['search']['competence'],
+                    self._trust_beliefs_dict[self._human_name]['search']['willingness'],
+                    self._trust_beliefs_dict[self._human_name]['rescue']['competence'],
+                    self._trust_beliefs_dict[self._human_name]['rescue']['willingness']
+                ])
+        except Exception as e:
+            print(f"Error saving current trust beliefs: {e}")
+
+    def _save_final_trust_beliefs(self):
+        """
+        Save the final trust beliefs to allTrustBeliefs.csv for persistence between rounds.
+        This method is called when the program terminates.
+        """
+        if not hasattr(self, '_trust_beliefs_dict') or not self._trust_beliefs_dict:
+            return
+            
+        existing_entries = {}
+        try:
+            with open(self._folder + '/beliefs/allTrustBeliefs.csv', 'r') as csvfile:
+                reader = csv.reader(csvfile, delimiter=';', quotechar="'")
+                header_row = next(reader, None)
+                
+                if header_row:  
+                    for row in reader:
+                        if row and len(row) >= 5 and row[0] != self._human_name:
+                            existing_entries[row[0]] = row[1:]
+        except (FileNotFoundError, IOError):
+            pass
+            
+        try:
+            with open(self._folder + '/beliefs/allTrustBeliefs.csv', mode='w') as csv_file:
+                csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                csv_writer.writerow(['name', 'competence search', 'willingness search', 'competence rescue', 'willingness rescue'])
+                
+                if self._human_name in self._trust_beliefs_dict:
+                    csv_writer.writerow([
+                        self._human_name,
+                        self._trust_beliefs_dict[self._human_name]['search']['competence'],
+                        self._trust_beliefs_dict[self._human_name]['search']['willingness'],
+                        self._trust_beliefs_dict[self._human_name]['rescue']['competence'],
+                        self._trust_beliefs_dict[self._human_name]['rescue']['willingness']
+                    ])
+                
+                for name, values in existing_entries.items():
+                    if len(values) >= 4:
+                        csv_writer.writerow([name] + values)
+        except Exception as e:
+            print(f"Error saving final trust beliefs: {e}")
 
     @property
     def trust_beliefs(self):
