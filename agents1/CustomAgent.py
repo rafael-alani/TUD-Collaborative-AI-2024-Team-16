@@ -988,12 +988,12 @@ class CustomAgent(ArtificialBrain):
                 counter = 0
                 victims = [item['victim'] for item in self._possible_searched_rooms]
                 locations = [item['room'] for item in self._possible_searched_rooms]
-                if (len(self._possible_searched_rooms) != counter):
+                #if (len(self._possible_searched_rooms) != counter):
                     #self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
 
-                else:
+                #else:
                     #self.trust_beliefs[self._human_name]['rescue']['competence'] += \
-                        WEIGHTS['found_victim_true'] * len(victims)
+                        #WEIGHTS['found_victim_true'] * len(victims)
 
                 victim_to_room = {item['victim']: item['room'] for item in self._possible_searched_rooms}
                 for victim in victims:
@@ -1015,6 +1015,7 @@ class CustomAgent(ArtificialBrain):
                     print(len(self._confirmed))
                     if counter != len(self._confirmed):
                         #self.trust_beliefs[self._human_name]['rescue']['competence'] -= .2
+                        continue
                     else:
                         self._collected_victims = list(set(self._collected_victims).union(set(self._possible_rescued_humans)))
                         #self.trust_beliefs[self._human_name]['rescue']['competence'] += .2
