@@ -466,7 +466,7 @@ class CustomAgent(ArtificialBrain):
                 # Increase trust if we are double-checking whether the human searched an area and he did it properly
                 if self._door['room_name'] in self._human_says_searched and self._door[
                     'room_name'] not in self._rewarded_rooms:
-                    self.trust_beliefs[self._human_name]['search']['willingness'] += 0.10
+                    #self.trust_beliefs[self._human_name]['search']['willingness'] += 0.10
                     self._rewarded_rooms.append(self._door['room_name'])
                     print("+1 good job")
                 objects = []
@@ -477,7 +477,7 @@ class CustomAgent(ArtificialBrain):
                         'obj_id']:
                         # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
                         if self._door['room_name'] in self._human_says_searched and self._door['room_name'] not in self._penalized_obstacles:
-                            self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                            #self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
                             self._penalized_obstacles.append(self._door['room_name'])
                             print("-2 rock")
                         objects.append(info)
@@ -522,7 +522,7 @@ class CustomAgent(ArtificialBrain):
                         'obj_id']:
                         # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
                         if self._door['room_name'] in self._human_says_searched and self._door['room_name'] not in self._penalized_obstacles:
-                            self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                            #self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
                             self._penalized_obstacles.append(self._door['room_name'])
                             print("-2 tree")
                         objects.append(info)
@@ -564,7 +564,7 @@ class CustomAgent(ArtificialBrain):
                             info['obj_id']:
                         # If human said he searched this area but there is an obstacle, then this means he didn't actually search it, so we update trust
                         if self._door['room_name'] in self._human_says_searched and self._door['room_name'] not in self._penalized_obstacles:
-                            self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                            #self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
                             self._penalized_obstacles.append(self._door['room_name'])
                             print("-2 stone")
                         objects.append(info)
@@ -615,7 +615,7 @@ class CustomAgent(ArtificialBrain):
                                 max_wait = self._max_remove_wait_ticks_close if self._distance_human == 'close' else self._max_remove_wait_ticks_far
                                 if self._remove_start_tick and (current_tick - self._remove_start_tick) > max_wait:
                                     # Apply trust penalty and reset state
-                                    self.trust_beliefs[self._human_name]['rescue']['competence'] += WEIGHTS['waiting_too_long']
+                                    #self.trust_beliefs[self._human_name]['rescue']['competence'] += WEIGHTS['waiting_too_long']
                                     self._send_message('You took too long to help remove the stones. I will continue with other tasks.', 'RescueBot')
                                     # Reset all state variables
                                     self._remove_start_tick = None
@@ -743,7 +743,7 @@ class CustomAgent(ArtificialBrain):
                                 # Communicate which victim the agent found and ask the human whether to rescue the victim now or at a later stage
                                 if 'mild' in vic and self._answered == False and not self._waiting:
                                     if self._door['room_name'] in self._human_says_searched:
-                                        self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                                        #self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
                                         print("-2 mild victim")
                                     if self.trust_beliefs[self._human_name]['rescue']['willingness'] < TRUST_TRESHOLDS['default']:
                                         self._rescue = 'alone'
@@ -765,7 +765,7 @@ class CustomAgent(ArtificialBrain):
                                 if 'critical' in vic and self._answered == False and not self._waiting:
                                     # If human said he searched this area but there is a victim, then this means he didn't properly search it, so we update trust
                                     if self._door['room_name'] in self._human_says_searched:
-                                        self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
+                                        #self.trust_beliefs[self._human_name]['search']['willingness'] -= 0.20
                                         print("-2 critical victim")
                                     self._send_message('Found ' + vic + ' in ' + self._door['room_name'] + '. Please decide whether to "Rescue" or "Continue" searching. \n\n \
                                         Important features to consider are: \n explore - areas searched: area ' + str(
@@ -989,10 +989,10 @@ class CustomAgent(ArtificialBrain):
                 victims = [item['victim'] for item in self._possible_searched_rooms]
                 locations = [item['room'] for item in self._possible_searched_rooms]
                 if (len(self._possible_searched_rooms) != counter):
-                    self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
+                    #self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
 
                 else:
-                    self.trust_beliefs[self._human_name]['rescue']['competence'] += \
+                    #self.trust_beliefs[self._human_name]['rescue']['competence'] += \
                         WEIGHTS['found_victim_true'] * len(victims)
 
                 victim_to_room = {item['victim']: item['room'] for item in self._possible_searched_rooms}
@@ -1014,10 +1014,10 @@ class CustomAgent(ArtificialBrain):
                     print(len(self._possible_rescued_humans))
                     print(len(self._confirmed))
                     if counter != len(self._confirmed):
-                        self.trust_beliefs[self._human_name]['rescue']['competence'] -= .2
+                        #self.trust_beliefs[self._human_name]['rescue']['competence'] -= .2
                     else:
                         self._collected_victims = list(set(self._collected_victims).union(set(self._possible_rescued_humans)))
-                        self.trust_beliefs[self._human_name]['rescue']['competence'] += .2
+                        #self.trust_beliefs[self._human_name]['rescue']['competence'] += .2
 
 
 
@@ -1147,7 +1147,7 @@ class CustomAgent(ArtificialBrain):
                     if loc in self._searched_rooms:
                         if collectVic not in self._found_victim_logs or self._found_victim_logs[collectVic]['room'] != loc:
                             print(self.trust_beliefs)
-                            self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
+                            #self.trust_beliefs[self._human_name]['rescue']['competence'] = WEIGHTS['found_victim_false']
 
                             self._send_message("Liar, I have already checked there, or you told me that you will so you should have reported any", "RescueBot")
                     if loc not in self._searched_rooms:
@@ -1183,7 +1183,7 @@ class CustomAgent(ArtificialBrain):
                     # Make up trust value if the human did report an obstacle correctly
                     area = 'area ' + msg.split()[-1]
                     if area in self._human_says_searched:
-                        self.trust_beliefs[self._human_name]['search']['willingness'] += 0.30
+                        #self.trust_beliefs[self._human_name]['search']['willingness'] += 0.30
                         print('+3 remove')
                     # Come over immediately when the agent is not carrying a victim
                     if not self._carrying:
@@ -1229,8 +1229,8 @@ class CustomAgent(ArtificialBrain):
         '''
         # Create a dictionary for storing trust values
         trustBeliefs = {}
-        default = TRUST_TRESHOLDS['default']
-        
+        #default = TRUST_TRESHOLDS['default']
+        default = -1
         # first try to load from allTrustBeliefs.csv
         found_in_all_beliefs = False
         try:
@@ -1293,7 +1293,8 @@ class CustomAgent(ArtificialBrain):
         '''
         # Initialize trust beliefs for human if not already present
         if self._human_name not in trustBeliefs:
-            default = TRUST_TRESHOLDS['default']
+            #default = TRUST_TRESHOLDS['default']
+            default = -1
             trustBeliefs[self._human_name] = {
                 'search': {'competence': default, 'willingness': default},
                 'rescue': {'competence': default, 'willingness': default}
@@ -1318,9 +1319,9 @@ class CustomAgent(ArtificialBrain):
             if expected_x == self._last_carrying_x and expected_y == self._last_carrying_y:
                 self._saved_victims.append(carried_victim)
                 self._moving = True
-                trustBeliefs[self._human_name]['rescue']['willingness'] += 0.10
-                trustBeliefs[self._human_name]['rescue']['willingness'] = np.clip(
-                    trustBeliefs[self._human_name]['rescue']['willingness'], -1, 1)
+                #trustBeliefs[self._human_name]['rescue']['willingness'] += 0.10
+                #trustBeliefs[self._human_name]['rescue']['willingness'] = np.clip(
+                    #trustBeliefs[self._human_name]['rescue']['willingness'], -1, 1)
             # Otherwise, subtract trust, remove the victim from the list of collected victims and
             # remember its location
             else:
@@ -1457,10 +1458,16 @@ class CustomAgent(ArtificialBrain):
             self._trust_beliefs_dict = {}
             # Initialize with default values
             default = TRUST_TRESHOLDS['default']
+
             self._trust_beliefs_dict[self._human_name] = {
-                'search': {'competence': default, 'willingness': default},
-                'rescue': {'competence': default, 'willingness': default}
+                'search': {'competence': -1, 'willingness': -1},
+                'rescue': {'competence': -1, 'willingness': -1}
             }
+
+            #self._trust_beliefs_dict[self._human_name] = {
+            #    'search': {'competence': default, 'willingness': default},
+            #    'rescue': {'competence': default, 'willingness': default}
+            #}
         return self._trust_beliefs_dict
 
     @trust_beliefs.setter
